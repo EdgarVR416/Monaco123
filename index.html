@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monaco Editor with Tabs</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: rgb(30, 30, 30);
+        }
+        .tab-container {
+            background: rgb(30, 30, 30);
+            padding: 5px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+        }
+        .tab {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            background: #2d2d2d;
+            color: #fff;
+            margin-right: 5px;
+            border-radius: 3px 3px 0 0;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .tab.active {
+            background: rgb(30, 30, 30);
+        }
+        .tab span {
+            cursor: pointer;
+        }
+        .tab .close-btn {
+            margin-left: 8px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 12px;
+        }
+        .add-tab {
+            padding: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+        #editor {
+            flex: 1;
+            width: 100%;
+            background: rgb(30, 30, 30) !important;
+        }
+        .tab.added {
+            animation: slideIn 0.3s ease forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .tab.closing {
+            animation: slideOut 0.3s ease forwards;
+        }
+        @keyframes slideOut {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-20px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="tab-container">
+        <div class="tab active" data-tab-id="0">
+            <span onclick="switchTab(0)">Tab 1</span>
+            <span class="close-btn" onclick="closeTab(0)">✕</span>
+        </div>
+        <div class="add-tab" onclick="addTab()">+</div>
+    </div>
+    <div id="editor"></div>
+
+    <!-- Use Monaco CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.33.0/min/vs/loader.min.js"></script>
+    <script>
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.33.0/min/vs' } });
+
+        let editors = [];
+        let currentTab = 0;
+        let tabCount = 1;
+        let editorContents = ['-- Tab 1 content\nprint("Hello from Roblox Lua")'];
+        let currentEditor = null;
+
+        require(['vs/editor/editor.main'], function() {
+            const editorContainer = document.getElementById('editor');
+            currentEditor = monaco.editor.create(editorContainer, {
+                value: editorContents[0],
+                language: 'lua',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollbar: { vertical: 'visible', verticalScrollbarSize: 10 }
+            });
+
+            monaco.editor.defineTheme('custom-dark', {
+                base: 'vs-dark',
+                inherit: true,
+                rules: [],
+                colors: {
+                    'editor.background': '#1E1E1E',
+                    'editor.foreground': '#FFFFFF',
+                    'editorLineNumber.foreground': '#AAAAAA'
+                }
+            });
+            currentEditor.updateOptions({ theme: 'custom-dark' });
+            editors[0] = currentEditor;
+        });
+
+        function switchTab(tabIndex) {
+            if (tabIndex === currentTab) return;
+            const tabs = document.getElementsByClassName('tab');
+            tabs[currentTab].classList.remove('active');
+            tabs[tabIndex].classList.add('active');
+            if (currentEditor) {
+                editorContents[currentTab] = currentEditor.getValue();
+                currentEditor.dispose();
+            }
+            const editorContainer = document.getElementById('editor');
+            currentEditor = monaco.editor.create(editorContainer, {
+                value: editorContents[tabIndex] || '',
+                language: 'lua',
+                theme: 'custom-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollbar: { vertical: 'visible', verticalScrollbarSize: 10 }
+            });
+            editors[tabIndex] = currentEditor;
+            currentTab = tabIndex;
+        }
+
+        function addTab() {
+            const tabContainer = document.querySelector('.tab-container');
+            const newTabIndex = tabCount++;
+            const newTab = document.createElement('div');
+            newTab.classList.add('tab', 'added');
+            newTab.setAttribute('data-tab-id', newTabIndex);
+            newTab.innerHTML = `
+                <span onclick="switchTab(${newTabIndex})">Tab ${newTabIndex + 1}</span>
+                <span class="close-btn" onclick="closeTab(${newTabIndex})">✕</span>
+            `;
+            const addTabButton = document.querySelector('.add-tab');
+            tabContainer.insertBefore(newTab, addTabButton);
+            editorContents[newTabIndex] = `-- Tab ${newTabIndex + 1} content\n`;
+            switchTab(newTabIndex);
+        }
+
+        function closeTab(tabIndex) {
+            const tabs = document.getElementsByClassName('tab');
+            if (tabs.length <= 1) return;
+            const tabToRemove = Array.from(tabs).find(tab => parseInt(tab.getAttribute('data-tab-id')) === tabIndex);
+            tabToRemove.classList.add('closing');
+            setTimeout(() => {
+                tabToRemove.remove();
+                editorContents[tabIndex] = null;
+                editors[tabIndex] = null;
+                if (currentTab === tabIndex) {
+                    const remainingTabs = Array.from(document.getElementsByClassName('tab'));
+                    const newTabIndex = parseInt(remainingTabs[remainingTabs.length - 1].getAttribute('data-tab-id'));
+                    switchTab(newTabIndex);
+                }
+            }, 300);
+        }
+    </script>
+</body>
+</html>
